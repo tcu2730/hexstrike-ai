@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}HexStrike AI - Cache Statistics{% endblock %}
+{% block page_title %}<i class="bi bi-database text-danger me-2"></i>Cache Statistics{% endblock %}
+{% block page_subtitle %}Monitor and manage the result cache{% endblock %}
+
+{% block content %}
+
+<!-- Cache Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-card-icon bg-success-subtle text-success mx-auto">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value text-success" id="cacheHits">—</div>
+                <div class="stat-label">Cache Hits</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-card-icon bg-danger-subtle text-danger mx-auto">
+                <i class="bi bi-x-circle-fill"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value text-danger" id="cacheMisses">—</div>
+                <div class="stat-label">Cache Misses</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-card-icon bg-warning-subtle text-warning mx-auto">
+                <i class="bi bi-percent"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value text-warning" id="cacheHitRate">—%</div>
+                <div class="stat-label">Hit Rate</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card text-center">
+            <div class="stat-card-icon bg-info-subtle text-info mx-auto">
+                <i class="bi bi-database-fill"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value text-info" id="cacheSize">—</div>
+                <div class="stat-label">Entries Cached</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cache Details + Chart -->
+<div class="row g-3 mb-4">
+    <!-- Hit/Miss chart -->
+    <div class="col-12 col-md-5">
+        <div class="hexstrike-card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-pie-chart text-danger me-2"></i>Hit vs Miss Ratio</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="cacheDonutChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache configuration details -->
+    <div class="col-12 col-md-7">
+        <div class="hexstrike-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-gear text-danger me-2"></i>Cache Configuration</h6>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadCacheStats()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="clearCache()">
+                        <i class="bi bi-trash me-1"></i>Clear Cache
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Cache fill bar -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted small">Cache Fill Level</span>
+                        <span class="text-muted small" id="cacheFillLabel">0 / 0 entries</span>
+                    </div>
+                    <div class="progress hexstrike-progress" style="height:12px">
+                        <div class="progress-bar bg-primary" id="cacheFillBar" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <!-- Config table -->
+                <table class="table table-sm table-dark table-borderless mb-0">
+                    <tbody id="cacheConfigTable">
+                        <tr>
+                            <td colspan="2" class="text-center text-muted">
+                                <span class="spinner-border spinner-border-sm"></span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clear cache warning -->
+<div class="alert alert-warning alert-dismissible d-flex align-items-center gap-2" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    <div class="small">
+        <strong>Note:</strong> Clearing the cache will remove all cached command results.
+        Subsequent requests will re-execute the commands and may take longer.
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let cacheChart = null;
+
+async function loadCacheStats() {
+    const stats = await fetchAPI('/api/cache/stats');
+    if (!stats || stats.offline) return;
+
+    const hits = stats.hits || 0;
+    const misses = stats.misses || 0;
+    const total = hits + misses;
+    const hitRate = total > 0 ? ((hits / total) * 100).toFixed(1) : 0;
+    const size = stats.size || 0;
+    const maxSize = stats.max_size || 1000;
+    const fillPct = maxSize > 0 ? Math.round((size / maxSize) * 100) : 0;
+
+    // Update cards
+    document.getElementById('cacheHits').textContent = hits.toLocaleString();
+    document.getElementById('cacheMisses').textContent = misses.toLocaleString();
+    document.getElementById('cacheHitRate').textContent = `${hitRate}%`;
+    document.getElementById('cacheSize').textContent = size.toLocaleString();
+
+    // Update fill bar
+    document.getElementById('cacheFillLabel').textContent = `${size} / ${maxSize} entries`;
+    document.getElementById('cacheFillBar').style.width = `${fillPct}%`;
+
+    // Config table
+    document.getElementById('cacheConfigTable').innerHTML = `
+        <tr><td class="text-muted">Max Size</td><td class="text-end font-monospace text-light">${maxSize} entries</td></tr>
+        <tr><td class="text-muted">Current Size</td><td class="text-end font-monospace text-light">${size} entries</td></tr>
+        <tr><td class="text-muted">TTL</td><td class="text-end font-monospace text-light">${stats.ttl || '—'} seconds</td></tr>
+        <tr><td class="text-muted">Evictions</td><td class="text-end font-monospace text-danger">${stats.evictions || 0}</td></tr>
+        <tr><td class="text-muted">Hit Rate</td><td class="text-end font-monospace text-success">${hitRate}%</td></tr>
+    `;
+
+    // Update donut chart
+    updateCacheChart(hits, misses);
+    setLastUpdated();
+}
+
+function updateCacheChart(hits, misses) {
+    const ctx = document.getElementById('cacheDonutChart').getContext('2d');
+
+    if (cacheChart) {
+        cacheChart.data.datasets[0].data = [hits, misses];
+        cacheChart.update('none');
+        return;
+    }
+
+    cacheChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Hits', 'Misses'],
+            datasets: [{
+                data: [hits, misses],
+                backgroundColor: ['rgba(25, 135, 84, 0.8)', 'rgba(220, 53, 69, 0.8)'],
+                borderColor: ['rgba(25, 135, 84, 1)', 'rgba(220, 53, 69, 1)'],
+                borderWidth: 2,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#adb5bd', font: { family: 'JetBrains Mono', size: 11 }, padding: 12 }
+                }
+            }
+        }
+    });
+}
+
+async function clearCache() {
+    if (!confirm('Clear all cached results? This cannot be undone.')) return;
+    const result = await postAPI('/api/cache/clear', {});
+    if (result && result.success) {
+        showToast('Cache cleared successfully', 'success');
+        loadCacheStats();
+    } else {
+        showToast('Failed to clear cache', 'danger');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadCacheStats();
+    setInterval(loadCacheStats, 10000);
+});
+</script>
+{% endblock %}
