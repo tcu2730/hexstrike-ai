@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+
+{% block title %}HexStrike AI - Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-speedometer2 text-danger me-2"></i>Dashboard{% endblock %}
+{% block page_subtitle %}Real-time server status and system overview{% endblock %}
+
+{% block content %}
+
+<!-- Status Cards Row -->
+<div class="row g-3 mb-4">
+    <!-- Server Status -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card" id="cardServerStatus">
+            <div class="stat-card-icon bg-danger-subtle text-danger">
+                <i class="bi bi-heart-pulse-fill"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value" id="statServerStatus">
+                    <span class="spinner-border spinner-border-sm"></span>
+                </div>
+                <div class="stat-label">Server Status</div>
+            </div>
+            <div class="stat-card-footer">
+                <small class="text-muted" id="statResponseTime">Connecting...</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uptime -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon bg-success-subtle text-success">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value" id="statUptime">—</div>
+                <div class="stat-label">Server Uptime</div>
+            </div>
+            <div class="stat-card-footer">
+                <small class="text-muted" id="statVersion">Version: —</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tools Available -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon bg-warning-subtle text-warning">
+                <i class="bi bi-tools"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value" id="statToolsAvailable">—</div>
+                <div class="stat-label">Tools Available</div>
+            </div>
+            <div class="stat-card-footer">
+                <small class="text-muted" id="statToolsTotal">of — total</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Requests -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <div class="stat-card-icon bg-info-subtle text-info">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <div class="stat-card-body">
+                <div class="stat-value" id="statRequests">—</div>
+                <div class="stat-label">Total API Requests</div>
+            </div>
+            <div class="stat-card-footer">
+                <small class="text-muted" id="statErrors">Errors: —</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Metrics Row -->
+<div class="row g-3 mb-4">
+    <!-- CPU Usage -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="metric-label"><i class="bi bi-cpu me-1 text-danger"></i>CPU Usage</span>
+                <span class="metric-value text-danger" id="metricCpu">—%</span>
+            </div>
+            <div class="progress hexstrike-progress">
+                <div class="progress-bar bg-danger" id="progressCpu" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memory Usage -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="metric-label"><i class="bi bi-memory me-1 text-warning"></i>Memory Usage</span>
+                <span class="metric-value text-warning" id="metricMemory">—%</span>
+            </div>
+            <div class="progress hexstrike-progress">
+                <div class="progress-bar bg-warning" id="progressMemory" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Hit Rate -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="metric-label"><i class="bi bi-database-check me-1 text-success"></i>Cache Hit Rate</span>
+                <span class="metric-value text-success" id="metricCacheHit">—%</span>
+            </div>
+            <div class="progress hexstrike-progress">
+                <div class="progress-bar bg-success" id="progressCacheHit" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Connections -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="metric-label"><i class="bi bi-wifi me-1 text-info"></i>Active Connections</span>
+                <span class="metric-value text-info" id="metricConnections">—</span>
+            </div>
+            <div class="progress hexstrike-progress">
+                <div class="progress-bar bg-info" id="progressConnections" style="width:0%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tools Categories + Recent Activity Row -->
+<div class="row g-3 mb-4">
+    <!-- Tool Categories Chart -->
+    <div class="col-12 col-lg-7">
+        <div class="hexstrike-card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-bar-chart-fill text-danger me-2"></i>Security Tools by Category</h6>
+                <a href="{{ url_for('tools') }}" class="btn btn-sm btn-outline-danger">View All</a>
+            </div>
+            <div class="card-body">
+                <canvas id="toolsCategoryChart" height="220"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="col-12 col-lg-5">
+        <div class="hexstrike-card h-100">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-activity text-danger me-2"></i>API Telemetry</h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-dark table-hover mb-0 telemetry-table">
+                    <tbody id="telemetryTableBody">
+                        <tr><td colspan="2" class="text-center text-muted py-3">
+                            <span class="spinner-border spinner-border-sm me-2"></span>Loading...
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Running Processes + Cache Row -->
+<div class="row g-3">
+    <!-- Active Processes -->
+    <div class="col-12 col-lg-6">
+        <div class="hexstrike-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-terminal-fill text-danger me-2"></i>
+                    Active Processes
+                    <span class="badge bg-danger ms-1" id="processCountBadge">0</span>
+                </h6>
+                <a href="{{ url_for('processes') }}" class="btn btn-sm btn-outline-danger">Manage</a>
+            </div>
+            <div class="card-body p-0">
+                <div id="processListContainer">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle text-success fs-3 d-block mb-2"></i>
+                        No active processes
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Summary -->
+    <div class="col-12 col-lg-6">
+        <div class="hexstrike-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-database text-danger me-2"></i>Cache Overview</h6>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshCacheStats()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="clearCache()">
+                        <i class="bi bi-trash me-1"></i>Clear
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="cacheOverviewBody">
+                <div class="text-center text-muted py-4">
+                    <span class="spinner-border spinner-border-sm me-2"></span>Loading cache stats...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Dashboard-specific real-time updates
+let toolsChart = null;
+const REFRESH_INTERVAL = 5000; // 5 seconds
+
+async function updateDashboard() {
+    try {
+        const status = await fetchAPI('/api/status');
+        if (!status) return;
+
+        // Update server status card
+        updateServerStatusCard(status);
+
+        // Update system metrics
+        await updateSystemMetrics();
+
+        // Update tools chart
+        if (status.category_stats) {
+            updateToolsChart(status.category_stats);
+        }
+
+        // Update telemetry table
+        if (status.telemetry) {
+            updateTelemetryTable(status.telemetry);
+        }
+
+        // Update cache overview
+        if (status.cache_stats) {
+            updateCacheOverview(status.cache_stats);
+        }
+
+        // Update footer timestamp
+        setLastUpdated();
+    } catch (e) {
+        console.error('Dashboard update error:', e);
+    }
+}
+
+function updateServerStatusCard(status) {
+    const el = document.getElementById('statServerStatus');
+    const responseEl = document.getElementById('statResponseTime');
+    const uptimeEl = document.getElementById('statUptime');
+    const versionEl = document.getElementById('statVersion');
+    const toolsEl = document.getElementById('statToolsAvailable');
+    const toolsTotalEl = document.getElementById('statToolsTotal');
+
+    if (status.online) {
+        el.innerHTML = '<span class="badge bg-success fs-6">ONLINE</span>';
+        responseEl.textContent = `Response: ${status.response_time_ms}ms`;
+        uptimeEl.textContent = formatUptime(status.uptime || 0);
+        versionEl.textContent = `Version: ${status.version || '—'}`;
+        toolsEl.textContent = status.total_tools_available || '0';
+        toolsTotalEl.textContent = `of ${status.total_tools_count || '0'} total`;
+    } else {
+        el.innerHTML = '<span class="badge bg-danger fs-6">OFFLINE</span>';
+        responseEl.textContent = status.error || 'Cannot connect';
+        uptimeEl.textContent = '—';
+        versionEl.textContent = 'Version: —';
+        toolsEl.textContent = '—';
+        toolsTotalEl.textContent = 'of — total';
+    }
+}
+
+async function updateSystemMetrics() {
+    try {
+        const metrics = await fetchAPI('/api/system/metrics');
+        if (!metrics) return;
+
+        const load = metrics.system_load || {};
+        const telemetry = metrics.telemetry || {};
+
+        // CPU
+        const cpu = load.cpu_percent || 0;
+        document.getElementById('metricCpu').textContent = `${cpu.toFixed(1)}%`;
+        document.getElementById('progressCpu').style.width = `${cpu}%`;
+
+        // Memory
+        const mem = load.memory_percent || 0;
+        document.getElementById('metricMemory').textContent = `${mem.toFixed(1)}%`;
+        document.getElementById('progressMemory').style.width = `${mem}%`;
+
+        // Active connections
+        const conns = load.active_connections || 0;
+        document.getElementById('metricConnections').textContent = conns;
+        document.getElementById('progressConnections').style.width = `${Math.min(conns * 2, 100)}%`;
+
+        // Update request stats from telemetry
+        if (telemetry.total_requests !== undefined) {
+            document.getElementById('statRequests').textContent = telemetry.total_requests || '0';
+            document.getElementById('statErrors').textContent = `Errors: ${telemetry.failed_commands || 0}`;
+        }
+    } catch (e) {
+        console.error('Metrics update error:', e);
+    }
+}
+
+function updateToolsChart(categoryStats) {
+    const labels = [];
+    const available = [];
+    const total = [];
+
+    const categoryEmoji = {
+        essential: '🔑', network: '🌐', web_security: '🕸️',
+        vuln_scanning: '🔍', password: '🔐', binary: '⚙️',
+        forensics: '🔬', cloud: '☁️', osint: '🎯',
+        exploitation: '💥', api: '📡', wireless: '📶'
+    };
+
+    for (const [cat, stats] of Object.entries(categoryStats)) {
+        if (cat === 'additional') continue;
+        const label = `${categoryEmoji[cat] || '🛠️'} ${cat.replaceAll('_', ' ')}`;
+        labels.push(label);
+        available.push(stats.available || 0);
+        total.push(stats.total || 0);
+    }
+
+    const ctx = document.getElementById('toolsCategoryChart').getContext('2d');
+
+    if (toolsChart) {
+        toolsChart.data.labels = labels;
+        toolsChart.data.datasets[0].data = available;
+        toolsChart.data.datasets[1].data = total;
+        toolsChart.update('none');
+        return;
+    }
+
+    toolsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Available',
+                    data: available,
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1,
+                    borderRadius: 3
+                },
+                {
+                    label: 'Total',
+                    data: total,
+                    backgroundColor: 'rgba(108, 117, 125, 0.3)',
+                    borderColor: 'rgba(108, 117, 125, 0.5)',
+                    borderWidth: 1,
+                    borderRadius: 3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    labels: { color: '#adb5bd', font: { family: 'JetBrains Mono', size: 11 } }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#6c757d', font: { size: 10 }, maxRotation: 45 },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                y: {
+                    ticks: { color: '#6c757d', font: { size: 10 } },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+            }
+        }
+    });
+}
+
+function updateTelemetryTable(telemetry) {
+    const tbody = document.getElementById('telemetryTableBody');
+    const rows = [
+        ['Total Requests', telemetry.total_requests || 0],
+        ['Successful Commands', telemetry.successful_commands || 0],
+        ['Failed Commands', telemetry.failed_commands || 0],
+        ['Cache Hits', telemetry.cache_hits || 0],
+        ['Cache Misses', telemetry.cache_misses || 0],
+        ['Avg Response (ms)', (telemetry.avg_response_time_ms || 0).toFixed(1)],
+    ];
+
+    tbody.innerHTML = rows.map(([label, value]) => `
+        <tr>
+            <td class="text-muted ps-3" style="font-size:0.85rem">${label}</td>
+            <td class="text-end pe-3 font-monospace text-light">${value}</td>
+        </tr>
+    `).join('');
+}
+
+function updateCacheOverview(stats) {
+    const hits = stats.hits || 0;
+    const misses = stats.misses || 0;
+    const total = hits + misses;
+    const hitRate = total > 0 ? ((hits / total) * 100).toFixed(1) : 0;
+    const size = stats.size || 0;
+    const maxSize = stats.max_size || 1000;
+    const fillPct = Math.round((size / maxSize) * 100);
+
+    // Update the hit rate progress bar
+    document.getElementById('metricCacheHit').textContent = `${hitRate}%`;
+    document.getElementById('progressCacheHit').style.width = `${hitRate}%`;
+
+    document.getElementById('cacheOverviewBody').innerHTML = `
+        <div class="row g-3 text-center">
+            <div class="col-4">
+                <div class="cache-stat-mini">
+                    <div class="cache-stat-value text-success">${hits}</div>
+                    <div class="cache-stat-label">Hits</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="cache-stat-mini">
+                    <div class="cache-stat-value text-danger">${misses}</div>
+                    <div class="cache-stat-label">Misses</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="cache-stat-mini">
+                    <div class="cache-stat-value text-warning">${hitRate}%</div>
+                    <div class="cache-stat-label">Hit Rate</div>
+                </div>
+            </div>
+        </div>
+        <hr class="border-secondary my-2">
+        <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1">
+                <small class="text-muted">Cache Fill</small>
+                <small class="text-muted">${size} / ${maxSize} entries</small>
+            </div>
+            <div class="progress hexstrike-progress">
+                <div class="progress-bar bg-primary" style="width:${fillPct}%"></div>
+            </div>
+        </div>
+        <div class="row g-2 mt-1">
+            <div class="col-6">
+                <small class="text-muted d-block">TTL</small>
+                <span class="font-monospace text-light">${stats.ttl || '—'}s</span>
+            </div>
+            <div class="col-6">
+                <small class="text-muted d-block">Evictions</small>
+                <span class="font-monospace text-light">${stats.evictions || 0}</span>
+            </div>
+        </div>
+    `;
+}
+
+async function updateProcessList() {
+    try {
+        const data = await fetchAPI('/api/processes/list');
+        if (!data) return;
+
+        const processes = data.active_processes || {};
+        const count = data.total_count || 0;
+        document.getElementById('processCountBadge').textContent = count;
+
+        const container = document.getElementById('processListContainer');
+        if (count === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-check-circle text-success fs-3 d-block mb-2"></i>
+                    No active processes
+                </div>`;
+            return;
+        }
+
+        const rows = Object.entries(processes).slice(0, 5).map(([pid, info]) => `
+            <div class="process-row d-flex align-items-center px-3 py-2 border-bottom border-secondary-subtle">
+                <div class="me-3">
+                    <span class="badge bg-secondary font-monospace">PID ${pid}</span>
+                </div>
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="text-truncate small text-light">${escapeHtml(info.command || '—')}</div>
+                    <div class="d-flex gap-2 mt-1">
+                        <span class="status-badge-sm status-${(info.status || 'unknown').toLowerCase()}">${info.status || 'unknown'}</span>
+                        <small class="text-muted">${info.runtime_formatted || '0s'}</small>
+                        ${info.progress > 0 ? `<small class="text-info">${(info.progress * 100).toFixed(0)}%</small>` : ''}
+                    </div>
+                </div>
+                <div>
+                    <button class="btn btn-xs btn-outline-danger ms-2"
+                            onclick="terminateProcess(${pid})"
+                            title="Terminate">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = rows;
+        if (count > 5) {
+            container.innerHTML += `
+                <div class="text-center py-2">
+                    <a href="{{ url_for('processes') }}" class="btn btn-sm btn-link text-danger">
+                        View all ${count} processes →
+                    </a>
+                </div>`;
+        }
+    } catch (e) {
+        console.error('Process list error:', e);
+    }
+}
+
+async function terminateProcess(pid) {
+    if (!confirm(`Terminate process ${pid}?`)) return;
+    const result = await postAPI(`/api/processes/terminate/${pid}`, {});
+    if (result && result.success) {
+        showToast(`Process ${pid} terminated`, 'success');
+        updateProcessList();
+    } else {
+        showToast(`Failed to terminate process ${pid}`, 'danger');
+    }
+}
+
+async function refreshCacheStats() {
+    const data = await fetchAPI('/api/cache/stats');
+    if (data) updateCacheOverview(data);
+}
+
+async function clearCache() {
+    if (!confirm('Clear all cached results?')) return;
+    const result = await postAPI('/api/cache/clear', {});
+    if (result && result.success) {
+        showToast('Cache cleared successfully', 'success');
+        refreshCacheStats();
+    } else {
+        showToast('Failed to clear cache', 'danger');
+    }
+}
+
+// Start the dashboard update loop
+document.addEventListener('DOMContentLoaded', () => {
+    updateDashboard();
+    updateProcessList();
+    setInterval(() => {
+        updateDashboard();
+        updateProcessList();
+    }, REFRESH_INTERVAL);
+});
+</script>
+{% endblock %}

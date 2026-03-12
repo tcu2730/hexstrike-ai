@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}HexStrike AI - Execute Commands{% endblock %}
+{% block page_title %}<i class="bi bi-terminal text-danger me-2"></i>Command Execution{% endblock %}
+{% block page_subtitle %}Execute security commands and view results{% endblock %}
+
+{% block content %}
+
+<div class="row g-3">
+    <!-- Command Input Panel -->
+    <div class="col-12 col-lg-6">
+        <div class="hexstrike-card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-terminal-fill text-danger me-2"></i>Command Builder</h6>
+            </div>
+            <div class="card-body">
+                <!-- Quick tool templates -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Quick Templates</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="nmap -sV -sC {target}">
+                            <i class="bi bi-radar me-1"></i>Nmap Scan
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="gobuster dir -u {target} -w /usr/share/wordlists/dirb/common.txt">
+                            <i class="bi bi-folder-symlink me-1"></i>Gobuster
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="nuclei -u {target} -severity critical,high">
+                            <i class="bi bi-bug me-1"></i>Nuclei
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="subfinder -d {domain}">
+                            <i class="bi bi-diagram-3 me-1"></i>Subfinder
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="nikto -h {target}">
+                            <i class="bi bi-shield-exclamation me-1"></i>Nikto
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="sqlmap -u {url} --batch">
+                            <i class="bi bi-database-exclamation me-1"></i>SQLMap
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="ffuf -u {target}/FUZZ -w /usr/share/wordlists/dirb/common.txt">
+                            <i class="bi bi-search me-1"></i>FFuf
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary template-btn" data-cmd="which nmap gobuster nuclei sqlmap hydra john hashcat">
+                            <i class="bi bi-check2-all me-1"></i>Check Tools
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Command input -->
+                <div class="mb-3">
+                    <label class="form-label text-muted small">Command</label>
+                    <textarea class="form-control bg-dark border-secondary text-light font-monospace"
+                              id="commandInput" rows="4"
+                              placeholder="Enter command to execute on the HexStrike server...&#10;&#10;Example: nmap -sV 192.168.1.1"></textarea>
+                    <div class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Commands run on the HexStrike API server. Execution timeout: 300 seconds.
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-danger flex-grow-1" id="executeBtn" onclick="executeCommand()">
+                        <i class="bi bi-play-fill me-1"></i>Execute Command
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="clearCommand()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Command History -->
+        <div class="hexstrike-card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-clock-history text-danger me-2"></i>Command History</h6>
+                <button class="btn btn-xs btn-outline-secondary" onclick="clearHistory()">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div class="card-body p-0" style="max-height:200px;overflow-y:auto">
+                <div id="commandHistory">
+                    <div class="text-center text-muted py-3 small">No history yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Output Panel -->
+    <div class="col-12 col-lg-6">
+        <div class="hexstrike-card" style="height:100%">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-display text-danger me-2"></i>Output</h6>
+                <div class="d-flex gap-2 align-items-center">
+                    <span class="badge" id="execStatusBadge"></span>
+                    <button class="btn btn-xs btn-outline-secondary" onclick="clearOutput()">
+                        <i class="bi bi-x-lg me-1"></i>Clear
+                    </button>
+                    <button class="btn btn-xs btn-outline-secondary" onclick="copyOutput()">
+                        <i class="bi bi-clipboard me-1"></i>Copy
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <pre class="terminal-output" id="commandOutput">
+<span class="text-muted">// Execute a command to see output here
+// Results are formatted and displayed below
+
+$ _</span></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MAX_HISTORY = 20;
+let commandHistory = JSON.parse(localStorage.getItem('hexstrike_cmd_history') || '[]');
+
+function renderHistory() {
+    const container = document.getElementById('commandHistory');
+    if (commandHistory.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-3 small">No history yet</div>';
+        return;
+    }
+
+    container.innerHTML = commandHistory.slice().reverse().map((cmd, i) => `
+        <div class="history-item d-flex align-items-center px-3 py-2 border-bottom border-secondary-subtle"
+             style="cursor:pointer" onclick="setCommand(${JSON.stringify(cmd)})">
+            <i class="bi bi-chevron-right text-muted me-2 small"></i>
+            <span class="font-monospace text-muted small text-truncate">${escapeHtml(cmd)}</span>
+        </div>
+    `).join('');
+}
+
+function setCommand(cmd) {
+    document.getElementById('commandInput').value = cmd;
+    document.getElementById('commandInput').focus();
+}
+
+function clearHistory() {
+    commandHistory = [];
+    localStorage.removeItem('hexstrike_cmd_history');
+    renderHistory();
+}
+
+function clearCommand() {
+    document.getElementById('commandInput').value = '';
+    document.getElementById('commandInput').focus();
+}
+
+function clearOutput() {
+    document.getElementById('commandOutput').innerHTML =
+        '<span class="text-muted">// Output cleared\n\n$ _</span>';
+    document.getElementById('execStatusBadge').textContent = '';
+    document.getElementById('execStatusBadge').className = 'badge';
+}
+
+function copyOutput() {
+    const text = document.getElementById('commandOutput').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Output copied to clipboard', 'success');
+    });
+}
+
+async function executeCommand() {
+    const input = document.getElementById('commandInput');
+    const command = input.value.trim();
+    if (!command) {
+        showToast('Please enter a command', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('executeBtn');
+    const outputEl = document.getElementById('commandOutput');
+    const statusBadge = document.getElementById('execStatusBadge');
+
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Executing...';
+    statusBadge.className = 'badge bg-warning';
+    statusBadge.textContent = 'Running...';
+
+    outputEl.innerHTML = `<span class="text-muted">$ ${escapeHtml(command)}</span>\n\n<span class="text-warning blink">Executing...</span>`;
+
+    // Add to history
+    commandHistory = commandHistory.filter(c => c !== command);
+    commandHistory.unshift(command);
+    if (commandHistory.length > MAX_HISTORY) commandHistory = commandHistory.slice(0, MAX_HISTORY);
+    localStorage.setItem('hexstrike_cmd_history', JSON.stringify(commandHistory));
+    renderHistory();
+
+    try {
+        const result = await postAPI('/api/execute', { command });
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Execute Command';
+
+        if (!result) {
+            statusBadge.className = 'badge bg-danger';
+            statusBadge.textContent = 'Error';
+            outputEl.innerHTML = `<span class="text-muted">$ ${escapeHtml(command)}</span>\n\n<span class="text-danger">Error: No response from server</span>`;
+            return;
+        }
+
+        if (result.offline || result.error) {
+            statusBadge.className = 'badge bg-danger';
+            statusBadge.textContent = 'Failed';
+            outputEl.innerHTML = `<span class="text-muted">$ ${escapeHtml(command)}</span>\n\n<span class="text-danger">❌ ${escapeHtml(result.error || 'Request failed')}</span>`;
+            return;
+        }
+
+        const success = result.success !== false;
+        statusBadge.className = `badge ${success ? 'bg-success' : 'bg-danger'}`;
+        statusBadge.textContent = success ? 'Success' : 'Failed';
+
+        // Format and display output
+        let output = '';
+        if (result.output) output = result.output;
+        else if (result.stdout) output = result.stdout;
+        else if (typeof result === 'object') output = JSON.stringify(result, null, 2);
+
+        const stderr = result.stderr || '';
+        const returnCode = result.return_code !== undefined ? result.return_code : '';
+        const duration = result.execution_time ? `${result.execution_time.toFixed(2)}s` : '';
+
+        let displayText = `<span class="text-muted">$ ${escapeHtml(command)}</span>\n`;
+        if (duration) displayText += `<span class="text-muted"># Duration: ${duration}</span>\n`;
+        displayText += '\n';
+
+        if (output) {
+            displayText += `<span class="${success ? 'text-light' : 'text-warning'}">${escapeHtml(output)}</span>`;
+        }
+        if (stderr) {
+            displayText += `\n<span class="text-warning">${escapeHtml(stderr)}</span>`;
+        }
+        if (returnCode !== '') {
+            displayText += `\n\n<span class="text-muted"># Exit code: ${returnCode}</span>`;
+        }
+
+        outputEl.innerHTML = displayText;
+
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Execute Command';
+        statusBadge.className = 'badge bg-danger';
+        statusBadge.textContent = 'Error';
+        outputEl.innerHTML = `<span class="text-muted">$ ${escapeHtml(command)}</span>\n\n<span class="text-danger">Error: ${escapeHtml(e.message)}</span>`;
+    }
+}
+
+// Template buttons
+document.addEventListener('DOMContentLoaded', () => {
+    renderHistory();
+
+    // Ctrl+Enter to execute
+    document.getElementById('commandInput').addEventListener('keydown', e => {
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            executeCommand();
+        }
+    });
+
+    // Quick template buttons
+    document.querySelectorAll('.template-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cmd = btn.getAttribute('data-cmd');
+            document.getElementById('commandInput').value = cmd;
+            document.getElementById('commandInput').focus();
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}HexStrike AI - Security Tools{% endblock %}
+{% block page_title %}<i class="bi bi-tools text-danger me-2"></i>Security Tools Inventory{% endblock %}
+{% block page_subtitle %}View and check status of all 150+ integrated security tools{% endblock %}
+
+{% block content %}
+
+<!-- Category filter + summary -->
+<div class="row g-3 mb-3">
+    <div class="col-12 col-md-6">
+        <div class="input-group">
+            <span class="input-group-text bg-dark border-secondary text-muted">
+                <i class="bi bi-search"></i>
+            </span>
+            <input type="text" class="form-control bg-dark border-secondary text-light"
+                   id="toolSearchInput" placeholder="Search tools...">
+        </div>
+    </div>
+    <div class="col-12 col-md-3">
+        <select class="form-select bg-dark border-secondary text-light" id="categoryFilter">
+            <option value="">All Categories</option>
+            <option value="essential">Essential</option>
+            <option value="network">Network</option>
+            <option value="web_security">Web Security</option>
+            <option value="vuln_scanning">Vulnerability Scanning</option>
+            <option value="password">Password</option>
+            <option value="binary">Binary Analysis</option>
+            <option value="forensics">Forensics</option>
+            <option value="cloud">Cloud Security</option>
+            <option value="osint">OSINT</option>
+            <option value="exploitation">Exploitation</option>
+            <option value="api">API Tools</option>
+            <option value="wireless">Wireless</option>
+        </select>
+    </div>
+    <div class="col-12 col-md-3">
+        <select class="form-select bg-dark border-secondary text-light" id="availabilityFilter">
+            <option value="">All Status</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Not Installed</option>
+        </select>
+    </div>
+</div>
+
+<!-- Summary bar -->
+<div class="hexstrike-card mb-3">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <span class="text-muted small">Tools installed:</span>
+            <span class="badge bg-success" id="toolsAvailableCount">0 available</span>
+            <span class="badge bg-danger" id="toolsMissingCount">0 missing</span>
+            <div class="ms-auto">
+                <button class="btn btn-sm btn-outline-danger" onclick="loadTools()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Status
+                </button>
+            </div>
+        </div>
+        <div class="progress hexstrike-progress mt-2" style="height:6px">
+            <div class="progress-bar bg-success" id="toolsOverallBar" style="width:0%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Tools by category -->
+<div id="toolsContainer">
+    <div class="text-center text-muted py-5">
+        <span class="spinner-border me-2"></span>Loading tools status...
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allToolsData = {};
+
+const CATEGORY_META = {
+    essential:     { label: 'Essential',           icon: 'bi-key-fill',        color: 'danger'    },
+    network:       { label: 'Network & Recon',     icon: 'bi-globe',           color: 'primary'   },
+    web_security:  { label: 'Web Security',        icon: 'bi-shield-shaded',   color: 'warning'   },
+    vuln_scanning: { label: 'Vulnerability Scan',  icon: 'bi-bug',             color: 'warning'   },
+    password:      { label: 'Password Tools',      icon: 'bi-lock-fill',       color: 'info'      },
+    binary:        { label: 'Binary Analysis',     icon: 'bi-cpu',             color: 'success'   },
+    forensics:     { label: 'Forensics & OSINT',   icon: 'bi-search',          color: 'info'      },
+    cloud:         { label: 'Cloud Security',      icon: 'bi-cloud-fill',      color: 'primary'   },
+    osint:         { label: 'OSINT Intelligence',  icon: 'bi-eye',             color: 'secondary' },
+    exploitation:  { label: 'Exploitation',        icon: 'bi-lightning-fill',  color: 'danger'    },
+    api:           { label: 'API Tools',           icon: 'bi-braces',          color: 'info'      },
+    wireless:      { label: 'Wireless Security',   icon: 'bi-wifi',            color: 'warning'   },
+    additional:    { label: 'Additional Tools',    icon: 'bi-tools',           color: 'secondary' }
+};
+
+async function loadTools() {
+    document.getElementById('toolsContainer').innerHTML = `
+        <div class="text-center text-muted py-5">
+            <span class="spinner-border me-2"></span>Checking tool availability...
+        </div>`;
+
+    const data = await fetchAPI('/api/health');
+    if (!data || data.offline) {
+        document.getElementById('toolsContainer').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Cannot reach HexStrike API server. Ensure the server is running.
+            </div>`;
+        return;
+    }
+
+    const toolsStatus = data.tools_status || {};
+    const categoryStats = data.category_stats || {};
+    allToolsData = { toolsStatus, categoryStats };
+
+    renderTools(toolsStatus, categoryStats);
+    setLastUpdated();
+}
+
+function renderTools(toolsStatus, categoryStats, filterCategory = '', filterAvail = '', searchQuery = '') {
+    const sq = searchQuery.toLowerCase().trim();
+
+    // Calculate overall stats
+    const allTools = Object.entries(toolsStatus);
+    const totalAvail = allTools.filter(([, v]) => v).length;
+    const totalMissing = allTools.filter(([, v]) => !v).length;
+
+    document.getElementById('toolsAvailableCount').textContent = `${totalAvail} available`;
+    document.getElementById('toolsMissingCount').textContent = `${totalMissing} missing`;
+    const pct = allTools.length > 0 ? Math.round((totalAvail / allTools.length) * 100) : 0;
+    document.getElementById('toolsOverallBar').style.width = `${pct}%`;
+
+    // Group tools by category using category_stats keys
+    const toolsByCategory = {};
+    for (const cat of Object.keys(CATEGORY_META)) {
+        toolsByCategory[cat] = [];
+    }
+
+    // We need to map tools to their categories. Re-build from known category tool lists.
+    // Use the health endpoint's category_stats for counts, then show all tools under best-match.
+    // Since the API doesn't return per-category tool lists, use CATEGORY_META order and
+    // assign tools based on approximate matching of known groups.
+    const categoryToolMap = {
+        essential: ['nmap', 'gobuster', 'dirb', 'nikto', 'sqlmap', 'hydra', 'john', 'hashcat'],
+        network: ['rustscan', 'masscan', 'autorecon', 'nbtscan', 'arp-scan', 'responder',
+                  'nxc', 'enum4linux-ng', 'rpcclient', 'enum4linux', 'smbmap', 'netexec'],
+        web_security: ['ffuf', 'feroxbuster', 'dirsearch', 'dotdotpwn', 'xsser', 'wfuzz',
+                       'gau', 'waybackurls', 'arjun', 'paramspider', 'x8', 'jaeles', 'dalfox',
+                       'httpx', 'wafw00f', 'katana', 'hakrawler', 'wpscan'],
+        vuln_scanning: ['nuclei', 'graphql-scanner', 'jwt-analyzer'],
+        password: ['medusa', 'patator', 'hash-identifier', 'ophcrack', 'hashcat-utils'],
+        binary: ['gdb', 'radare2', 'binwalk', 'ropgadget', 'checksec', 'objdump',
+                 'ghidra', 'pwntools', 'one-gadget', 'ropper', 'angr', 'libc-database', 'pwninit'],
+        forensics: ['volatility3', 'vol', 'steghide', 'hashpump', 'foremost', 'exiftool',
+                    'strings', 'xxd', 'file', 'photorec', 'testdisk', 'scalpel',
+                    'bulk-extractor', 'stegsolve', 'zsteg', 'outguess', 'volatility'],
+        cloud: ['prowler', 'scout-suite', 'trivy', 'kube-hunter', 'kube-bench',
+                'docker-bench-security', 'checkov', 'terrascan', 'falco', 'clair'],
+        osint: ['amass', 'subfinder', 'fierce', 'dnsenum', 'theharvester', 'sherlock',
+                'social-analyzer', 'recon-ng', 'maltego', 'spiderfoot', 'shodan-cli',
+                'censys-cli', 'have-i-been-pwned'],
+        exploitation: ['metasploit', 'exploit-db', 'searchsploit', 'msfvenom', 'msfconsole',
+                       'evil-winrm'],
+        api: ['api-schema-analyzer', 'postman', 'insomnia', 'curl', 'httpie', 'anew', 'qsreplace', 'uro'],
+        wireless: ['kismet', 'wireshark', 'tshark', 'tcpdump', 'airmon-ng', 'airodump-ng',
+                   'aireplay-ng', 'aircrack-ng']
+    };
+
+    // Assign tools to categories
+    const assignedTools = new Set();
+    for (const [cat, toolList] of Object.entries(categoryToolMap)) {
+        toolsByCategory[cat] = toolList.filter(t => t in toolsStatus);
+        toolList.forEach(t => assignedTools.add(t));
+    }
+
+    // Remaining tools go to 'additional'
+    toolsByCategory['additional'] = Object.keys(toolsStatus).filter(t => !assignedTools.has(t));
+
+    // Build HTML
+    const container = document.getElementById('toolsContainer');
+    const sections = [];
+
+    for (const [cat, meta] of Object.entries(CATEGORY_META)) {
+        if (filterCategory && filterCategory !== cat) continue;
+
+        const tools = toolsByCategory[cat] || [];
+        const filteredTools = tools.filter(t => {
+            if (sq && !t.toLowerCase().includes(sq)) return false;
+            if (filterAvail === 'available' && !toolsStatus[t]) return false;
+            if (filterAvail === 'unavailable' && toolsStatus[t]) return false;
+            return true;
+        });
+
+        if (filteredTools.length === 0) continue;
+
+        const avail = filteredTools.filter(t => toolsStatus[t]).length;
+        const total = filteredTools.length;
+        const pct = total > 0 ? Math.round((avail / total) * 100) : 0;
+
+        const toolBadges = filteredTools.map(t => {
+            const isAvail = toolsStatus[t];
+            return `<span class="tool-badge ${isAvail ? 'tool-available' : 'tool-missing'}"
+                         title="${t} — ${isAvail ? '✅ Installed' : '❌ Not installed'}">
+                        <i class="bi ${isAvail ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'} me-1"></i>
+                        ${escapeHtml(t)}
+                    </span>`;
+        }).join('');
+
+        sections.push(`
+            <div class="hexstrike-card mb-3 category-section" data-category="${cat}">
+                <div class="card-header d-flex align-items-center justify-content-between"
+                     style="cursor:pointer" data-bs-toggle="collapse"
+                     data-bs-target="#cat-${cat}">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi ${meta.icon} text-${meta.color}"></i>
+                        <span class="fw-semibold">${meta.label}</span>
+                        <span class="badge bg-success">${avail} installed</span>
+                        <span class="badge bg-secondary">${total - avail} missing</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="progress hexstrike-progress" style="width:80px;height:6px">
+                            <div class="progress-bar bg-${meta.color}" style="width:${pct}%"></div>
+                        </div>
+                        <small class="text-muted">${pct}%</small>
+                        <i class="bi bi-chevron-down text-muted"></i>
+                    </div>
+                </div>
+                <div class="collapse show" id="cat-${cat}">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2">
+                            ${toolBadges}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    }
+
+    if (sections.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-search fs-3 d-block mb-2"></i>
+                No tools match your filters.
+            </div>`;
+    } else {
+        container.innerHTML = sections.join('');
+    }
+}
+
+// Filter event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    loadTools();
+
+    const searchInput = document.getElementById('toolSearchInput');
+    const catFilter = document.getElementById('categoryFilter');
+    const availFilter = document.getElementById('availabilityFilter');
+
+    const applyFilters = () => {
+        if (!allToolsData.toolsStatus) return;
+        renderTools(
+            allToolsData.toolsStatus,
+            allToolsData.categoryStats,
+            catFilter.value,
+            availFilter.value,
+            searchInput.value
+        );
+    };
+
+    searchInput.addEventListener('input', applyFilters);
+    catFilter.addEventListener('change', applyFilters);
+    availFilter.addEventListener('change', applyFilters);
+});
+</script>
+{% endblock %}

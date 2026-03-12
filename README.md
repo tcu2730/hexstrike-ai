@@ -212,6 +212,52 @@ curl -X POST http://localhost:8888/api/intelligence/analyze-target \
 
 ---
 
+## Web Dashboard GUI
+
+HexStrike AI includes a browser-based dashboard for visual monitoring and management.
+
+### Start the Dashboard
+
+```bash
+# Start the API server first (in one terminal)
+python3 hexstrike_server.py
+
+# Start the dashboard (in another terminal)
+python3 hexstrike_dashboard.py
+
+# Access the dashboard in your browser
+# http://localhost:5000
+```
+
+### Dashboard Options
+
+```bash
+# Custom dashboard port
+python3 hexstrike_dashboard.py --port 8080
+
+# Connect to API server on a different port
+python3 hexstrike_dashboard.py --api-url http://localhost:9999
+
+# Enable debug mode
+python3 hexstrike_dashboard.py --debug
+```
+
+### Dashboard Features
+
+| Page | URL | Description |
+|------|-----|-------------|
+| Dashboard | `/` | Real-time server status, metrics, tools chart, cache overview |
+| Processes | `/processes` | Live process list with pause/resume/kill controls |
+| Cache | `/cache` | Cache hit/miss stats, configuration, clear button |
+| Tools | `/tools` | 150+ security tools inventory with category filter |
+| Execute | `/logs` | Command builder with templates, history, and output display |
+
+### Screenshots
+
+![HexStrike AI Dashboard](https://github.com/user-attachments/assets/2961478b-87ed-45d1-8c10-aa5ae79aceb8)
+
+---
+
 ## AI Client Integration Setup
 
 ### Claude Desktop Integration or Cursor
