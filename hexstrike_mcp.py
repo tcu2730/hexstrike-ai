@@ -5411,6 +5411,49 @@ def setup_mcp_server(hexstrike_client: HexStrikeClient) -> FastMCP:
 
         return result
 
+    @mcp.tool()
+    def redteam_get_commands(phase: str = "", tool: str = "", target_type: str = "") -> Dict[str, Any]:
+        """
+        Retrieve comprehensive advanced Red Team penetration testing curl commands organized by attack phase.
+
+        Covers all major attack phases including reconnaissance, scanning, vulnerability assessment,
+        exploitation, post-exploitation, persistence, exfiltration, covering tracks, WAF/IDS bypass,
+        advanced evasion, and OSINT.
+
+        Args:
+            phase: Optional filter by attack phase (e.g., 'reconnaissance', 'exploitation',
+                   'post_exploitation', 'persistence', 'exfiltration', 'covering_tracks',
+                   'waf_ids_bypass', 'advanced_evasion', 'osint', 'scanning_and_enumeration',
+                   'vulnerability_assessment'). Leave empty for all phases.
+            tool: Optional filter by tool name (e.g., 'nmap', 'sqlmap', 'nuclei'). Leave empty for all tools.
+            target_type: Optional filter by target type (e.g., 'web', 'windows', 'linux', 'network').
+                         Leave empty for all target types.
+
+        Returns:
+            Comprehensive collection of Red Team commands organized by attack phase, each with
+            description, target_type, tool, command, curl_example, evasion_techniques,
+            expected_output, and remediation notes.
+        """
+        data = {}
+        if phase:
+            data["phase"] = phase
+        if tool:
+            data["tool"] = tool
+        if target_type:
+            data["target_type"] = target_type
+
+        logger.info(f"🎯 Fetching Red Team commands | Phase: '{phase or 'all'}' | Tool: '{tool or 'all'}' | Target: '{target_type or 'all'}'")
+        result = hexstrike_client.safe_post("api/redteam/commands", data)
+
+        if result.get("success"):
+            total = result.get("total_commands", 0)
+            phases = result.get("total_phases", 0)
+            logger.info(f"✅ Red Team commands retrieved - {total} commands across {phases} attack phases")
+        else:
+            logger.error("❌ Failed to retrieve Red Team commands")
+
+        return result
+
     return mcp
 
 def parse_args():

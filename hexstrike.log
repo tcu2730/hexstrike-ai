@@ -1,0 +1,22 @@
+2026-03-13 00:23:36,206 - hexstrike_server - INFO - 🔧 Process pool worker 0 started
+2026-03-13 00:23:36,206 - hexstrike_server - INFO - 🔧 Process pool worker 1 started
+2026-03-13 00:23:36,207 - hexstrike_server - INFO - 🔧 Process pool worker 2 started
+2026-03-13 00:23:36,207 - hexstrike_server - INFO - 🔧 Process pool worker 3 started
+2026-03-13 00:23:36,245 - hexstrike_server - ERROR - 💥 Error in redteam commands endpoint: 415 Unsupported Media Type: Did not attempt to load JSON data because the request Content-Type was not 'application/json'.
+2026-03-13 00:23:36,246 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 2 | Commands: 13
+2026-03-13 00:23:36,247 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 3 | Commands: 4
+2026-03-13 00:23:58,915 - hexstrike_server - INFO - 🔧 Process pool worker 0 started
+2026-03-13 00:23:58,916 - hexstrike_server - INFO - 🔧 Process pool worker 1 started
+2026-03-13 00:23:58,916 - hexstrike_server - INFO - 🔧 Process pool worker 2 started
+2026-03-13 00:23:58,916 - hexstrike_server - INFO - 🔧 Process pool worker 3 started
+2026-03-13 00:23:58,954 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 11 | Commands: 55
+2026-03-13 00:23:58,955 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 1 | Commands: 4
+2026-03-13 00:23:58,956 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 1 | Commands: 4
+2026-03-13 00:24:58,827 - hexstrike_server - INFO - 🔧 Process pool worker 0 started
+2026-03-13 00:24:58,828 - hexstrike_server - INFO - 🔧 Process pool worker 1 started
+2026-03-13 00:24:58,828 - hexstrike_server - INFO - 🔧 Process pool worker 2 started
+2026-03-13 00:24:58,828 - hexstrike_server - INFO - 🔧 Process pool worker 3 started
+2026-03-13 00:24:58,866 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 11 | Commands: 55
+2026-03-13 00:24:58,867 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 1 | Commands: 4
+2026-03-13 00:24:58,868 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 3 | Commands: 4
+2026-03-13 00:24:58,868 - hexstrike_server - INFO - 🎯 Red team commands requested | Phases: 5 | Commands: 11
